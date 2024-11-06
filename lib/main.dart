@@ -19,19 +19,38 @@ class AquariumScreen extends StatefulWidget {
   _AquariumScreenState createState() => _AquariumScreenState();
 }
 
-class _AquariumScreenState extends State<AquariumScreen> {
+class _AquariumScreenState extends State<AquariumScreen> with TickerProviderStateMixin {
   List<Fish> fishList = [];
   double fishSpeed = 2.0;
   Color fishColor = Colors.blue;
 
-  void addFish() {
-    setState(() {
-      fishList.add(Fish(color: fishColor, speed: fishSpeed));
-    });
+  void _addFish() {
+    if (fishList.length < 10) { // Limit to 10 fish
+      setState(() {
+        fishList.add(Fish(color: fishColor, speed: fishSpeed, vsync: this));
+      });
+    }
+  }
+
+  void _removeFish() {
+    if (fishList.isNotEmpty) {
+      setState(() {
+        fishList.last.dispose(); // Dispose controller to avoid memory leaks
+        fishList.removeLast();
+      });
+    }
   }
 
   void saveSettings() {
-    // Here you can add logic to save fish count, speed, and color to local storage.
+    // Save settings (e.g., fish count, speed, color) to local storage here
+  }
+
+  @override
+  void dispose() {
+    for (var fish in fishList) {
+      fish.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -115,8 +134,12 @@ class _AquariumScreenState extends State<AquariumScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
-                      onPressed: addFish,
+                      onPressed: _addFish,
                       child: Text("Add Fish"),
+                    ),
+                    ElevatedButton(
+                      onPressed: _removeFish,
+                      child: Text("Remove Fish"),
                     ),
                     ElevatedButton(
                       onPressed: saveSettings,
@@ -136,26 +159,56 @@ class _AquariumScreenState extends State<AquariumScreen> {
 class Fish {
   final Color color;
   final double speed;
-  final double initialPositionX;
-  final double initialPositionY;
+  final AnimationController controller;
+  final Random random = Random();
+  double xPosition, yPosition;
+  double xDirection, yDirection;
 
-  Fish({required this.color, required this.speed})
-      : initialPositionX = Random().nextDouble() * 300,
-        initialPositionY = Random().nextDouble() * 300;
+  Fish({required this.color, required this.speed, required TickerProvider vsync})
+      : controller = AnimationController(
+          duration: Duration(seconds: 2),
+          vsync: vsync,
+        ),
+        xPosition = Random().nextDouble() * 280,
+        yPosition = Random().nextDouble() * 280,
+        xDirection = (Random().nextBool() ? 1 : -1) * Random().nextDouble(),
+        yDirection = (Random().nextBool() ? 1 : -1) * Random().nextDouble() {
+    controller.repeat();
+    controller.addListener(() {
+      xPosition += xDirection * speed;
+      yPosition += yDirection * speed;
+
+      // Check for boundary collisions
+      if (xPosition <= 0 || xPosition >= 280) {
+        xDirection *= -1;
+      }
+      if (yPosition <= 0 || yPosition >= 280) {
+        yDirection *= -1;
+      }
+    });
+  }
 
   Widget buildFish() {
-    return Positioned(
-      left: initialPositionX,
-      top: initialPositionY,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: (1000 ~/ speed).toInt()),
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return Positioned(
+          left: xPosition,
+          top: yPosition,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  void dispose() {
+    controller.dispose();
   }
 }
