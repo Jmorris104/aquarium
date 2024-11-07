@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'dart:math';
-
-
+import database_helper.dart;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseHelper.init();
@@ -27,7 +26,7 @@ class DatabaseHelper {
 
   static Future<void> init() async {
     _database = await openDatabase(
-      join(await getDatabasesPath(), 'aquarium.db'),
+      p.join(await getDatabasesPath(), 'aquarium.db'),
       onCreate: (db, version) {
         return db.execute(
           'CREATE TABLE settings(id INTEGER PRIMARY KEY, fishCount INTEGER, fishSpeed REAL, fishColor INTEGER)',
